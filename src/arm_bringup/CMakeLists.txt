@@ -7,7 +7,10 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(robot_description REQUIRED)
+find_package(arm_description REQUIRED)
+find_package(robot_state_publisher REQUIRED)
+find_package(rviz2 REQUIRED)
+find_package(xacro REQUIRED)
 
 install(
   DIRECTORY

@@ -5,14 +5,15 @@ from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitut
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
+import xacro
 import os
 
 def generate_launch_description():
-    urdf_path = os.path.join(get_package_share_directory('robot_description'), 'urdf', 'arm.urdf')
+    urdf_path = os.path.join(get_package_share_directory('arm_description'), 'urdf', 'arm.urdf.xacro')
     rviz_config_path = os.path.join(get_package_share_directory('arm_bringup'), 'config', 'rviz_config.rviz')
+    ros2_control_yaml_path = os.path.join(get_package_share_directory('arm_description'), 'config', 'ros2_control.yaml')
 
-    with open(urdf_path, 'r') as infp:
-        urdf = infp.read()
+    urdf = xacro.process_file(urdf_path).toxml()
 
     robot_state_publisher_node = Node(
         package='robot_state_publisher',
@@ -21,10 +22,34 @@ def generate_launch_description():
         parameters=[{'robot_description': urdf}]
     )
 
-    joint_state_publisher_gui_node = Node(
-        package='joint_state_publisher_gui',
-        executable='joint_state_publisher_gui',
-        name='joint_state_publisher_gui',
+    controller_manager = Node(
+        package='controller_manager',
+        executable='ros2_control_node',
+        output='screen',
+        parameters=[ros2_control_yaml_path]
+    )
+
+    joint_state_broadcaster_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=[
+            'joint_state_broadcaster',
+            '--controller-manager-timeout',
+            '300',
+            '--controller-manager',
+            '/controller_manager'],
+        output='screen'
+    )
+
+    joint_trajectory_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=[
+            'joint_trajectory_controller',
+            '--controller-manager-timeout',
+            '300',
+            '--controller-manager',
+            '/controller_manager'],
         output='screen'
     )
 
@@ -38,7 +63,9 @@ def generate_launch_description():
 
     ld = LaunchDescription()
     ld.add_action(robot_state_publisher_node)
-    ld.add_action(joint_state_publisher_gui_node)
+    ld.add_action(controller_manager)
+    ld.add_action(joint_state_broadcaster_spawner)
+    ld.add_action(joint_trajectory_controller_spawner)
     ld.add_action(rviz_node)
 
     return ld
