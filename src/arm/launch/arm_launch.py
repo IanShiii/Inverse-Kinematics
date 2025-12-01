@@ -64,11 +64,25 @@ def generate_launch_description():
         output='screen'
     )
 
+    inverse_kinematics_service_node = Node(
+        package='inverse_kinematics',
+        executable='ik_service_node',
+        output='screen'
+    )
+
+    pose_to_joint_trajectory_node = Node(
+        package='arm',
+        executable='pose_to_joint_trajectory_node',
+        output='screen'
+    )
+
     ld = LaunchDescription()
     ld.add_action(fox_glove_bridge_launch)
     ld.add_action(robot_state_publisher_node)
     ld.add_action(controller_manager)
     ld.add_action(joint_state_broadcaster_spawner)
     ld.add_action(joint_trajectory_controller_spawner)
+    ld.add_action(inverse_kinematics_service_node)
+    ld.add_action(pose_to_joint_trajectory_node)
 
     return ld

@@ -1,8 +1,7 @@
 # Input: desired end-effector pose
-geometry_msgs/PoseStamped target_pose
+geometry_msgs/Pose target_pose
 
 ---
 # Output: joint values for your 6 DOF arm
-float64[6] joint_positions
+float64[6] joint_angles
 bool success
-string error_message

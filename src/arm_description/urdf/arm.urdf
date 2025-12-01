@@ -1,0 +1,161 @@
+<?xml version="1.0"?>
+<robot name="arm" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- Base link -->
+    <link name="base_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <cylinder length="0.05" radius="0.08"/>
+            </geometry>
+            <material name="gray">
+                <color rgba="0.6 0.6 0.6 1.0"/>
+            </material>
+        </visual>
+    </link>
+
+    <!-- Joint 1 -->
+    <link name="link_1">
+        <visual>
+            <origin xyz="0 0 0.15" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.12 0.06 0.3"/>
+            </geometry>
+            <material name="blue">
+                <color rgba="0.2 0.2 0.8 1.0"/>
+            </material>
+        </visual>
+    </link>
+
+    <joint name="joint_1" type="revolute">
+        <parent link="base_link"/>
+        <child link="link_1"/>
+        <origin xyz="0 0 0.025" rpy="0 0 0"/>
+        <axis xyz="0 0 1"/>
+        <limit lower="-3.1416" upper="3.1416" effort="50" velocity="2.0"/>
+    </joint>
+
+    <!-- Joint 2 -->
+    <link name="link_2">
+        <visual>
+            <origin xyz="0 0 0.20" rpy="0 0 0"/>
+            <geometry>
+                <cylinder length="0.4" radius="0.035"/>
+            </geometry>
+            <material name="green">
+                <color rgba="0.2 0.8 0.2 1.0"/>
+            </material>
+        </visual>
+    </link>
+
+    <joint name="joint_2" type="revolute">
+        <parent link="link_1"/>
+        <child link="link_2"/>
+        <origin xyz="0 0 0.3" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        <limit lower="-1.57" upper="1.57" effort="50" velocity="2.0"/>
+    </joint>
+
+    <!-- Joint 3 -->
+    <link name="link_3">
+        <visual>
+            <origin xyz="0 0 0.15" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.10 0.05 0.3"/>
+            </geometry>
+            <material name="yellow">
+                <color rgba="0.9 0.8 0.2 1.0"/>
+            </material>
+        </visual>
+    </link>
+
+    <joint name="joint_3" type="revolute">
+        <parent link="link_2"/>
+        <child link="link_3"/>
+        <origin xyz="0 0 0.4" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        <limit lower="-2.0" upper="2.0" effort="40" velocity="2.0"/>
+    </joint>
+
+    <!-- Joint 4 -->
+    <link name="link_4">
+        <visual>
+            <origin xyz="0 0 0.12" rpy="0 0 0"/>
+            <geometry>
+                <cylinder length="0.24" radius="0.03"/>
+            </geometry>
+            <material name="red">
+                <color rgba="0.8 0.2 0.2 1.0"/>
+            </material>
+        </visual>
+    </link>
+
+    <joint name="joint_4" type="revolute">
+        <parent link="link_3"/>
+        <child link="link_4"/>
+        <origin xyz="0 0 0.3" rpy="0 0 0"/>
+        <axis xyz="1 0 0"/>
+        <limit lower="-3.1416" upper="3.1416" effort="30" velocity="3.0"/>
+    </joint>
+
+    <!-- Joint 5 -->
+    <link name="link_5">
+        <visual>
+            <origin xyz="0 0 0.08" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.08 0.05 0.16"/>
+            </geometry>
+            <material name="cyan">
+                <color rgba="0.2 0.8 0.8 1.0"/>
+            </material>
+        </visual>
+    </link>
+
+    <joint name="joint_5" type="revolute">
+        <parent link="link_4"/>
+        <child link="link_5"/>
+        <origin xyz="0 0 0.24" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        <limit lower="-2.0" upper="2.0" effort="20" velocity="3.0"/>
+    </joint>
+
+    <!-- Joint 6 (wrist / end effector) -->
+    <link name="link_6">
+        <visual>
+            <origin xyz="0 0 0.06" rpy="0 0 0"/>
+            <geometry>
+                <cylinder length="0.12" radius="0.04"/>
+            </geometry>
+            <material name="magenta">
+                <color rgba="0.8 0.2 0.8 1.0"/>
+            </material>
+        </visual>
+    </link>
+
+    <joint name="joint_6" type="revolute">
+        <parent link="link_5"/>
+        <child link="link_6"/>
+        <origin xyz="0 0 0.16" rpy="0 0 0"/>
+        <axis xyz="0 0 1"/>
+        <limit lower="-6.2832" upper="6.2832" effort="10" velocity="6.0"/>
+    </joint>
+
+    <!-- End effector frame (tool) -->
+    <link name="ee_link">
+        <visual>
+            <origin xyz="0 0 0.0" rpy="0 0 0"/>
+            <geometry>
+                <sphere radius="0.04"/>
+            </geometry>
+            <material name="black">
+                <color rgba="0 0 0 1.0"/>
+            </material>
+        </visual>
+    </link>
+
+    <joint name="ee_fixed" type="fixed">
+        <parent link="link_6"/>
+        <child link="ee_link"/>
+        <origin xyz="0 0 0.12" rpy="0 0 0"/>
+    </joint>
+</robot>
