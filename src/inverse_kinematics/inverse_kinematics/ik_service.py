@@ -13,7 +13,20 @@ class IkServiceNode(Node):
     def __init__(self):
         super().__init__("ik_service_node")
         self.srv = self.create_service(InverseKinematics, "solve_ik", self.handle_solve_ik)
-        self.markers_pub = self.create_publisher(PoseStamped, "ik_debug_markers", 10)
+        self.joint_1_pose_pub = self.create_publisher(PoseStamped, "joint_1_pose", 10)
+        self.joint_2_pose_pub = self.create_publisher(PoseStamped, "joint_2_pose", 10)
+        self.joint_3_pose_pub = self.create_publisher(PoseStamped, "joint_3_pose", 10)
+        self.joint_4_pose_pub = self.create_publisher(PoseStamped, "joint_4_pose", 10)
+        self.joint_5_pose_pub = self.create_publisher(PoseStamped, "joint_5_pose", 10)
+        self.joint_6_pose_pub = self.create_publisher(PoseStamped, "joint_6_pose", 10)
+        self.joint_pose_publishers = [
+            self.joint_1_pose_pub,
+            self.joint_2_pose_pub,
+            self.joint_3_pose_pub,
+            self.joint_4_pose_pub,
+            self.joint_5_pose_pub,
+            self.joint_6_pose_pub,
+        ]
         try:
             urdf_file = os.path.join(get_package_share_directory("arm_description"), "urdf", "arm.urdf")
             self.get_logger().info(f"Using URDF from arm_description: {urdf_file}")
@@ -60,15 +73,31 @@ class IkServiceNode(Node):
                 target_pose_geometry_msg.pose.orientation.z,
             ))
         ])
-        # publish where ik_solver thinks the joints are as markers to visualize
-        for i in range(6):
-            joint_pose = self.ik_solver.get_joint_pose(i, [0.0]*6)
 
-            self.get_logger().debug(f"Joint {i} pose at zero angles: {joint_pose}")
+        # test_angles = [1.0, 0.2, 0.3, 0.3, 0.4, 0.4]
+
         try:
             joint_angles, success = self.ik_solver.solve_ik(target_pose_np)
             response.joint_angles = joint_angles
+            # response.joint_angles = test_angles
             response.success = True
+            # response.success = success
+
+            for i in range(6):
+                joint_pose = self.ik_solver.get_joint_pose(i, joint_angles)
+                joint_pose_stamped = PoseStamped()
+                joint_pose_stamped.header.frame_id = "base_link"
+                joint_pose_stamped.pose.position.x = joint_pose[0]
+                joint_pose_stamped.pose.position.y = joint_pose[1]
+                joint_pose_stamped.pose.position.z = joint_pose[2]
+                # convert rpy to quaternion
+                quat = rpy_to_quaternion(joint_pose[3], joint_pose[4], joint_pose[5])
+                joint_pose_stamped.pose.orientation.x = quat[0]
+                joint_pose_stamped.pose.orientation.y = quat[1]
+                joint_pose_stamped.pose.orientation.z = quat[2]
+                joint_pose_stamped.pose.orientation.w = quat[3]
+                self.joint_pose_publishers[i].publish(joint_pose_stamped)
+
         except Exception as e:
             response.joint_angles = []
             response.success = False
