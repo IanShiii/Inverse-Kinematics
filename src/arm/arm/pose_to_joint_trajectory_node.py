@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import PoseStamped
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from interfaces.srv import InverseKinematics
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
@@ -24,7 +24,7 @@ class PoseToJointTrajectoryNode(Node):
             durability=QoSDurabilityPolicy.TRANSIENT_LOCAL
         )
 
-        self.pose_sub = self.create_subscription(Pose, "target_pose", self.pose_callback, qos)
+        self.pose_sub = self.create_subscription(PoseStamped, "target_pose", self.pose_callback, qos)
 
     def pose_callback(self, pose):
         self.get_logger().info("Received Pose message, calling IK service...")
@@ -38,6 +38,7 @@ class PoseToJointTrajectoryNode(Node):
         result = future.result()
         if result.success:
             self.get_logger().info("IK solved successfully, publishing JointTrajectory.")
+            self.get_logger().info(f"Joint Angles: {result.joint_angles}")
             jt_msg = JointTrajectory()
             jt_msg.joint_names = [f'joint_{i+1}' for i in range(len(result.joint_angles))]
             point = JointTrajectoryPoint()

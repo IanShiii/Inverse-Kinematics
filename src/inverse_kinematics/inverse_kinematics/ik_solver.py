@@ -56,32 +56,87 @@ def pose_to_transformation_matrix(x, y, z, roll, pitch, yaw):
     return transformation_matrix
 
 class IKSolver:
-    def __init__(self, joint_transformations: List[np.ndarray], joint_axes: List[np.ndarray], end_effector_transformation: np.ndarray):
+    def __init__(self, default_joint_transformations: List[np.ndarray], joint_axes: List[np.ndarray], end_effector_transformation: np.ndarray):
         # Relative transformations from one joint to the next
-        self.joint_transformations = joint_transformations
+        self.default_joint_transformations = default_joint_transformations
         self.joint_axes = joint_axes
         self.end_effector_transformation = end_effector_transformation
 
     def get_transformation_matrix_for_joint(self, joint_index: int, joint_angle: float):
         rotation_from_joint_angle_matrix = np.eye(4)
         rotation_from_joint_angle_matrix[:3, :3] = get_rotation_matrix_around_axis(self.joint_axes[joint_index], joint_angle)
-        return rotation_from_joint_angle_matrix @ self.joint_transformations[joint_index]
+        return rotation_from_joint_angle_matrix @ self.default_joint_transformations[joint_index]
     
-    def get_joint_position(self, joint_index: int, joint_angles: List[float]):
+    def get_joint_pose(self, joint_index: int, joint_angles: List[float]):
         joint_transformation_matrix = np.eye(4)
         for i in range(joint_index + 1):
             joint_transformation_matrix = self.get_transformation_matrix_for_joint(i, joint_angles[i]) @ joint_transformation_matrix
         
-        return joint_transformation_matrix[:3, 3], rotation_matrix_to_rpy(joint_transformation_matrix[:3, :3])
+        xyz = joint_transformation_matrix[:3, 3]
+        rpy = rotation_matrix_to_rpy(joint_transformation_matrix[:3, :3])
+
+        return (*xyz, *rpy)
     
     def get_end_effector_pose(self, joint_angles: List[float]):
         end_effector_transformation_matrix = np.eye(4)
-        for i in range(len(self.joint_transformations)):
+        for i in range(len(self.default_joint_transformations)):
             end_effector_transformation_matrix = self.get_transformation_matrix_for_joint(i, joint_angles[i]) @ end_effector_transformation_matrix
         
         end_effector_transformation_matrix = self.end_effector_transformation @ end_effector_transformation_matrix
 
-        return end_effector_transformation_matrix[:3, 3], rotation_matrix_to_rpy(end_effector_transformation_matrix[:3, :3])
+        xyz = end_effector_transformation_matrix[:3, 3]
+        rpy = rotation_matrix_to_rpy(end_effector_transformation_matrix[:3, :3])
+
+        return (*xyz, *rpy)
+    
+    def get_jacobian(self, joint_angles: List[float]):
+        num_joints = len(self.default_joint_transformations)
+        jacobian = np.zeros((6, num_joints))
+        
+        end_effector_pose = self.get_end_effector_pose(joint_angles)
+        end_effector_translation = np.array(end_effector_pose[:3])
+        
+        for i in range(num_joints):
+            joint_pose = self.get_joint_pose(i, joint_angles)
+            joint_axis = self.joint_axes[i]
+            joint_translation = np.array(joint_pose[:3])
+            # Linear part
+            jacobian[:3, i] = np.cross(joint_axis, end_effector_translation - joint_translation)
+            # Angular part
+            jacobian[3:, i] = joint_axis
+        
+        return jacobian
+    
+    def solve_ik(self, target_pose: np.ndarray, initial_guess: List[float] = None, max_iterations: int = 100, tolerance: float = 1e-6):
+        if initial_guess is None:
+            initial_guess = [0.0] * len(self.default_joint_transformations)
+        
+        joint_angles = np.array(initial_guess, dtype=float)
+        
+        for iteration in range(max_iterations):
+            current_end_effector_pose = self.get_end_effector_pose(joint_angles)
+            current_end_effector_translation = np.array(current_end_effector_pose[:3])
+            current_end_effector_rotation = rpy_to_rotation_matrix(*current_end_effector_pose[3:])
+            
+            target_end_effector_translation = target_pose[:3]
+            target_end_effector_rotation = rpy_to_rotation_matrix(*target_pose[3:])
+            
+            translation_error = target_end_effector_translation - current_end_effector_translation
+            rotation_error = target_end_effector_rotation @ current_end_effector_rotation.T
+            
+            # Compute the error vector
+            error_vector = np.concatenate((translation_error, rotation_matrix_to_rpy(rotation_error)))
+            
+            if np.linalg.norm(error_vector) < tolerance:
+                return joint_angles.tolist(), True
+            
+            jacobian = self.get_jacobian(joint_angles)
+            # Use pseudo-inverse to compute the change in joint angles
+            delta_angles = np.linalg.pinv(jacobian) @ error_vector
+            
+            joint_angles += delta_angles
+        
+        return joint_angles.tolist(), False
         
 
 

@@ -1,25 +1,19 @@
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import PoseStamped
 from urdf_parser_py.urdf import URDF
 from interfaces.srv import InverseKinematics
 from ament_index_python.packages import get_package_share_directory
+from inverse_kinematics.ik_solver import *
 import os
-
-
-def solve_ik(pose: Pose):
-    num_joints = 6
-    joint_angles = [0.0] * num_joints
-
-    # TODO: compute actual joint_angles from pose
-    success = True
-    return joint_angles, success 
-
+import numpy as np
+from typing import List
 
 class IkServiceNode(Node):
     def __init__(self):
         super().__init__("ik_service_node")
         self.srv = self.create_service(InverseKinematics, "solve_ik", self.handle_solve_ik)
+        self.markers_pub = self.create_publisher(PoseStamped, "ik_debug_markers", 10)
         try:
             urdf_file = os.path.join(get_package_share_directory("arm_description"), "urdf", "arm.urdf")
             self.get_logger().info(f"Using URDF from arm_description: {urdf_file}")
@@ -27,17 +21,54 @@ class IkServiceNode(Node):
             self.get_logger().error(f"Could not locate URDF file: {e}")
 
         self.urdf : URDF = URDF.from_xml_file(urdf_file)
-        self.get_logger().info(f"Loaded URDF with {len(self.urdf.links)} links and {len(self.urdf.joints)} joints.")
-        # for joint in self.urdf.joints:
-        #     self.get_logger().info(f"\nJoint: {joint.name}")
+
+        joint_transforms: List[np.ndarray] = []
+        end_efector_transform: np.ndarray
+
+        for joint in self.urdf.joints:
+            origin = getattr(joint, "origin")
+            xyz = getattr(origin, "xyz")
+            rpy = getattr(origin, "rpy")
+            # log the joint transformations
+            self.get_logger().info(f"Joint {joint.name} origin xyz: {xyz}, rpy: {rpy}")
+            if not joint.type == "fixed":
+                joint_transforms.append(pose_to_transformation_matrix(xyz[0], xyz[1], xyz[2], rpy[0], rpy[1], rpy[2]))
+            else:
+                end_efector_transform = pose_to_transformation_matrix(xyz[0], xyz[1], xyz[2], rpy[0], rpy[1], rpy[2])
+        
+        joint_axis: List[np.ndarray] = []
+
+        for joint in self.urdf.joints:
+            if not joint.type == "fixed":
+                axis = getattr(joint, "axis")
+                self.get_logger().info(f"Joint {joint.name} axis: {axis}")
+                joint_axis.append(np.array(axis) / np.linalg.norm(axis))
+
+        self.ik_solver = IKSolver(joint_transforms, joint_axis, end_efector_transform)
         self.get_logger().info("IK service ready")
 
     def handle_solve_ik(self, request, response):
         self.get_logger().debug(f"Received IK request: {request}")
+        target_pose_geometry_msg = request.target_pose
+        target_pose_np = np.array([
+            target_pose_geometry_msg.pose.position.x,
+            target_pose_geometry_msg.pose.position.y,
+            target_pose_geometry_msg.pose.position.z,
+            *rotation_matrix_to_rpy(rpy_to_rotation_matrix(
+                target_pose_geometry_msg.pose.orientation.x,
+                target_pose_geometry_msg.pose.orientation.y,
+                target_pose_geometry_msg.pose.orientation.z,
+            ))
+        ])
+        # publish where ik_solver thinks the joints are as markers to visualize
+        for i in range(6):
+            joint_pose = self.ik_solver.get_joint_pose(i, [0.0]*6)
+
+            self.get_logger().debug(f"Joint {i} pose at zero angles: {joint_pose}")
         try:
-            joint_angles, success = solve_ik(request.target_pose)
+            joint_angles, success = self.ik_solver.solve_ik(target_pose_np)
             response.joint_angles = joint_angles
-            response.success = bool(success)
+            response.success = True
         except Exception as e:
             response.joint_angles = []
             response.success = False
