@@ -122,7 +122,7 @@ class IKSolver:
         
         return jacobian
     
-    def solve_ik(self, target_pose: np.ndarray, initial_guess: List[float] = None, max_iterations: int = 2500, tolerance: float = 0.02):
+    def solve_ik(self, target_pose: np.ndarray, initial_guess: List[float] = None, max_iterations: int = 5000, tolerance: float = 0.02):
         if initial_guess is None:
             initial_guess = [0.0] * len(self.default_joint_transformations)
         
