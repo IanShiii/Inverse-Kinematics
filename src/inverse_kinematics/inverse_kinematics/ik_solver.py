@@ -113,8 +113,12 @@ class IKSolver:
         
         for i in range(num_joints):
             joint_pose = self.get_joint_pose(i, joint_angles)
-            joint_axis = self.joint_axes[i]
+
+            axis_rotation = rpy_to_rotation_matrix(joint_pose[3], joint_pose[4], joint_pose[5])
+            joint_axis = axis_rotation @ self.joint_axes[i]
+
             joint_translation = np.array(joint_pose[:3])
+            
             # Linear part
             jacobian[:3, i] = np.cross(joint_axis, end_effector_translation - joint_translation)
             # Angular part
@@ -159,7 +163,7 @@ class IKSolver:
             # Use pseudo-inverse to compute the change in joint angles with a damping term to push eigenvalues away from 0
             delta_angles = jacobian.T @ np.linalg.inv(jacobian @ jacobian.T + 0.001 * np.eye(6)) @ error_vector
             
-            joint_angles += 0.01 * delta_angles
+            joint_angles += 0.005 * delta_angles
         
         return joint_angles.tolist(), False
         
