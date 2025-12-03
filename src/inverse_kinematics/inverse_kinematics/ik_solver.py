@@ -80,12 +80,12 @@ class IKSolver:
     def get_transformation_matrix_for_joint(self, joint_index: int, joint_angle: float):
         rotation_from_joint_angle_matrix = np.eye(4)
         rotation_from_joint_angle_matrix[:3, :3] = get_rotation_matrix_around_axis(self.joint_axes[joint_index], joint_angle)
-        return self.default_joint_transformations[joint_index] @ rotation_from_joint_angle_matrix #
+        return self.default_joint_transformations[joint_index] @ rotation_from_joint_angle_matrix
     
     def get_joint_pose(self, joint_index: int, joint_angles: List[float]):
         joint_transformation_matrix = np.eye(4)
         for i in range(joint_index + 1):
-            joint_transformation_matrix = joint_transformation_matrix @ self.get_transformation_matrix_for_joint(i, joint_angles[i]) #
+            joint_transformation_matrix = joint_transformation_matrix @ self.get_transformation_matrix_for_joint(i, joint_angles[i])
         
         xyz = joint_transformation_matrix[:3, 3]
         rpy = rotation_matrix_to_rpy(joint_transformation_matrix[:3, :3])
@@ -95,7 +95,7 @@ class IKSolver:
     def get_end_effector_pose(self, joint_angles: List[float]):
         end_effector_transformation_matrix = np.eye(4)
         for i in range(len(self.default_joint_transformations)):
-            end_effector_transformation_matrix = end_effector_transformation_matrix @ self.get_transformation_matrix_for_joint(i, joint_angles[i]) #
+            end_effector_transformation_matrix = end_effector_transformation_matrix @ self.get_transformation_matrix_for_joint(i, joint_angles[i])
         
         end_effector_transformation_matrix = end_effector_transformation_matrix @ self.end_effector_transformation
 
